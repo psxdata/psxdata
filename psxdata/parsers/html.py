@@ -7,6 +7,7 @@ with a logged warning.
 from __future__ import annotations
 
 import logging
+import re
 
 from bs4 import BeautifulSoup, Tag
 
@@ -49,6 +50,23 @@ def extract_table_headers(table: Tag) -> list[str]:
     return headers
 
 
+_ABBREVIATED_NUMBER = re.compile(r"^-?[\d.,]+\s*[KMBT]$")
+
+
+def _cell_value(td: Tag, headers: list[str], index: int) -> str:
+    """Return the cell's text, preferring PSX's exact ``data-order`` value where
+    the visible text is lossy: abbreviated numbers ("167.7B") and symbol cells,
+    which can carry a tag badge ("BAHL" + "XD") that pollutes the text.
+    """
+    text = td.get_text(strip=True)
+    exact = td.get("data-order")
+    if exact is None or index >= len(headers):
+        return text
+    if headers[index] == "symbol" or _ABBREVIATED_NUMBER.match(text):
+        return str(exact).strip()
+    return text
+
+
 def parse_table_rows(table: Tag, headers: list[str]) -> list[dict[str, str]]:
     """Map <tr><td> rows to dicts keyed by normalised header name.
 
@@ -67,7 +85,7 @@ def parse_table_rows(table: Tag, headers: list[str]) -> list[dict[str, str]]:
     tr_tags = tbody.find_all("tr") if tbody else table.find_all("tr")
 
     for tr in tr_tags:
-        cells = [td.get_text(strip=True) for td in tr.find_all("td")]
+        cells = [_cell_value(td, headers, i) for i, td in enumerate(tr.find_all("td"))]
         if not cells:
             continue
         if len(cells) != len(headers):

@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2026-11-01
+
+### Fixed
+
+- Screener `market_cap` and `free_float` were NULL for every symbol. PSX shows abbreviated text ("167.7B", "7.0M") in those cells and keeps the exact value in the `data-order` attribute; the HTML table parser now uses it for abbreviated numbers. Applies to every table parsed through `parse_html_table`.
+- Symbols with PSX's ex-dividend badge (`XD`) were returned with the badge glued on (`BAHL` came back as `BAHLXD`), so they looked missing from the screener and renamed in index constituents. Symbol cells now use the exact `data-order` value.
+
 ## [1.2.0] - 2026-09-30
 
 ### Added

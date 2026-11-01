@@ -156,3 +156,35 @@ class TestParseTablesByHeading:
         result = parse_tables_by_heading(html)
         assert "table_0" in result
         assert "bonds" in result
+
+
+class TestDataOrderCells:
+    """PSX renders exact values in data-order; visible text is display-only."""
+
+    _HTML = (
+        "<table><thead><tr><th>SYMBOL</th><th>MARKET CAP.</th><th>PRICE</th>"
+        "<th>FREE FLOAT</th></tr></thead><tbody>"
+        '<tr><td data-order="BAHL"><a>BAHL</a><div class="tag">XD</div></td>'
+        '<td data-order="167702981472.91">167.7B</td>'
+        '<td data-order="150.89">150.89</td>'
+        '<td data-order="6987575">7.0M</td></tr>'
+        "</tbody></table>"
+    )
+
+    def test_symbol_ignores_tag_text(self):
+        assert parse_html_table(self._HTML)[0]["symbol"] == "BAHL"
+
+    def test_abbreviated_number_uses_data_order(self):
+        row = parse_html_table(self._HTML)[0]
+        assert row["market_cap"] == "167702981472.91"
+        assert row["free_float"] == "6987575"
+
+    def test_plain_number_text_unchanged(self):
+        assert parse_html_table(self._HTML)[0]["price"] == "150.89"
+
+    def test_non_abbreviated_cells_keep_text_even_with_data_order(self):
+        html = (
+            "<table><thead><tr><th>SYMBOL</th><th>CHANGE (%)</th></tr></thead>"
+            '<tbody><tr><td>A</td><td data-order="0.4">0.40%</td></tr></tbody></table>'
+        )
+        assert parse_html_table(html)[0]["change_pct"] == "0.40%"
