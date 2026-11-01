@@ -174,7 +174,7 @@ Playwright is retained for tooling only (endpoint discovery). Scrapers use `_get
 
 ### FastAPI Layer
 
-The REST API has moved to a standalone repository: [mtauha/psxdata-api](https://github.com/mtauha/psxdata-api). It consumes this library purely as a published PyPI dependency (`pip install psxdata`) and has no source-level coupling to this repo. See that repo's ARCHITECTURE notes for its design.
+The REST API has moved to a standalone repository: [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api). It consumes this library purely as a published PyPI dependency (`pip install psxdata`) and has no source-level coupling to this repo. See that repo's ARCHITECTURE notes for its design.
 
 ---
 

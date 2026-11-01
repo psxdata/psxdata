@@ -2,7 +2,7 @@
 
 > **Status:** Active development — through Phase 3 API complete. Phases 4 and 5 are open for contributions.
 
-This file is the single source of truth for where `psxdata` is and where it is going. The [ROADMAP issue (#4)](https://github.com/mtauha/psxdata/issues/4) on GitHub tracks overall progress.
+This file is the single source of truth for where `psxdata` is and where it is going. The [ROADMAP issue (#4)](https://github.com/psxdata/psxdata/issues/4) on GitHub tracks overall progress.
 
 ---
 
@@ -15,7 +15,7 @@ Phase 2     ✅  Core engineering (BaseScraper, parsers, cache, utils)
 Phase 3     ✅  All 8 PSX endpoint scrapers
 Phase 3 API ✅  Public Python package interface
 ─────────────────────────────────────────────────────────────────
-Phase 4     ➡️  FastAPI REST layer (moved to mtauha/psxdata-api)
+Phase 4     ➡️  FastAPI REST layer (moved to psxdata/psxdata-api)
 Phase 5     🔲  Full test suite               ← open for contributions
 Phase 6     🔲  Packaging, Docker, CI/CD      ← depends on 4 + 5
 Phase 7     🔲  Documentation                 ← can start alongside 6
@@ -37,7 +37,7 @@ CI/CD (GitHub Actions), branch protection, labels, milestones, and all community
 
 Artifacts: `.github/`, `pyproject.toml`, community files
 
-### ✅ Phase 2 — Core Engineering ([#5](https://github.com/mtauha/psxdata/issues/5))
+### ✅ Phase 2 — Core Engineering ([#5](https://github.com/psxdata/psxdata/issues/5))
 
 | Component | What it does |
 |---|---|
@@ -50,7 +50,7 @@ Artifacts: `.github/`, `pyproject.toml`, community files
 | `models/schemas.py` | Pydantic v2 data models |
 | `scrapers/base.py` | `BaseScraper` — session, retry, rate limit |
 
-### ✅ Phase 3 — Scrapers ([#6](https://github.com/mtauha/psxdata/issues/6))
+### ✅ Phase 3 — Scrapers ([#6](https://github.com/psxdata/psxdata/issues/6))
 
 | Scraper | Endpoint |
 |---|---|
@@ -64,7 +64,7 @@ Artifacts: `.github/`, `pyproject.toml`, community files
 | `debt_market.py` | GET `/debt-market` |
 | `eligible_scrips.py` | GET `/eligible-scrips` |
 
-### ✅ Phase 3 API — Public Python Interface ([#7](https://github.com/mtauha/psxdata/issues/7))
+### ✅ Phase 3 API — Public Python Interface ([#7](https://github.com/psxdata/psxdata/issues/7))
 
 `psxdata/client.py` with `PSXClient` and module-level convenience functions:
 
@@ -90,9 +90,9 @@ psxdata.market.eligible_scrips()
 
 ### Track A
 
-#### ➡️ Phase 4 — FastAPI REST Layer (moved to [mtauha/psxdata-api](https://github.com/mtauha/psxdata-api)) ([#8](https://github.com/mtauha/psxdata/issues/8))
+#### ➡️ Phase 4 — FastAPI REST Layer (moved to [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api)) ([#8](https://github.com/psxdata/psxdata/issues/8))
 
-This phase has moved to its own repository: [mtauha/psxdata-api](https://github.com/mtauha/psxdata-api). It consumes `psxdata` as a published PyPI dependency. The sub-tasks below are kept for historical reference and remain linked to their original issues.
+This phase has moved to its own repository: [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api). It consumes `psxdata` as a published PyPI dependency. The sub-tasks below are kept for historical reference and remain linked to their original issues.
 
 Build `api/` wrapping the Python package. All responses follow:
 
@@ -121,7 +121,7 @@ Build `api/` wrapping the Python package. All responses follow:
 
 ---
 
-#### 🔲 Phase 5 — Full Test Suite ([#9](https://github.com/mtauha/psxdata/issues/9))
+#### 🔲 Phase 5 — Full Test Suite ([#9](https://github.com/psxdata/psxdata/issues/9))
 
 Complete unit, integration, and reliability coverage. **No Playwright needed** — all fixtures are static HTML from AJAX responses.
 
@@ -156,7 +156,7 @@ Complete unit, integration, and reliability coverage. **No Playwright needed** �
 
 ### Track B — starts after Track A is mostly complete
 
-#### 🔲 Phase 6 — Packaging, Docker & CI/CD ([#10](https://github.com/mtauha/psxdata/issues/10))
+#### 🔲 Phase 6 — Packaging, Docker & CI/CD ([#10](https://github.com/psxdata/psxdata/issues/10))
 
 **Sub-tasks:**
 
@@ -171,7 +171,7 @@ Complete unit, integration, and reliability coverage. **No Playwright needed** �
 
 ---
 
-#### 🔲 Phase 7 — Documentation ([#11](https://github.com/mtauha/psxdata/issues/11))
+#### 🔲 Phase 7 — Documentation ([#11](https://github.com/psxdata/psxdata/issues/11))
 
 Can begin as soon as Phase 4 API surface is stable.
 

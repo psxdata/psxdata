@@ -4,7 +4,7 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Use [GitHub's private vulnerability reporting](https://github.com/mtauha/psxdata/security/advisories/new) to report a vulnerability confidentially.
+Use [GitHub's private vulnerability reporting](https://github.com/psxdata/psxdata/security/advisories/new) to report a vulnerability confidentially.
 
 Include:
 - A description of the vulnerability

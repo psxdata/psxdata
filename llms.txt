@@ -15,11 +15,11 @@ Requires Python 3.11+
 
 ## Docs
 
-- [README](https://github.com/mtauha/psxdata/blob/main/README.md)
-- [Architecture](https://github.com/mtauha/psxdata/blob/main/ARCHITECTURE.md)
-- [Changelog](https://github.com/mtauha/psxdata/blob/main/CHANGELOG.md)
-- [Contributing](https://github.com/mtauha/psxdata/blob/main/CONTRIBUTING.md)
-- [Roadmap](https://github.com/mtauha/psxdata/blob/main/ROADMAP.md)
+- [README](https://github.com/psxdata/psxdata/blob/main/README.md)
+- [Architecture](https://github.com/psxdata/psxdata/blob/main/ARCHITECTURE.md)
+- [Changelog](https://github.com/psxdata/psxdata/blob/main/CHANGELOG.md)
+- [Contributing](https://github.com/psxdata/psxdata/blob/main/CONTRIBUTING.md)
+- [Roadmap](https://github.com/psxdata/psxdata/blob/main/ROADMAP.md)
 - [PyPI](https://pypi.org/project/psxdata/)
 
 ## Public API
@@ -61,6 +61,6 @@ Requires Python 3.11+
 
 ## REST API
 
-A FastAPI REST layer is live at [mtauha/psxdata-api](https://github.com/mtauha/psxdata-api) (v0.1.2), deployed at https://psxdata-api.fastapicloud.dev. It wraps this library over HTTP with endpoints for stocks, quotes, indices, sectors, debt market, and eligible scrips. Docs: https://psxdata.mintlify.app/rest-api/introduction.
+A FastAPI REST layer is live at [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api) (v0.1.2), deployed at https://psxdata-api.fastapicloud.dev. It wraps this library over HTTP with endpoints for stocks, quotes, indices, sectors, debt market, and eligible scrips. Docs: https://psxdata.mintlify.app/rest-api/introduction.
 
 All responses: `{"data": ..., "meta": {"timestamp": "...", "cached": bool}}`

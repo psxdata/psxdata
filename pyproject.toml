@@ -57,10 +57,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mtauha/psxdata"
-Source = "https://github.com/mtauha/psxdata"
-"Bug Tracker" = "https://github.com/mtauha/psxdata/issues"
-Changelog = "https://github.com/mtauha/psxdata/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/psxdata/psxdata"
+Source = "https://github.com/psxdata/psxdata"
+"Bug Tracker" = "https://github.com/psxdata/psxdata/issues"
+Changelog = "https://github.com/psxdata/psxdata/blob/main/CHANGELOG.md"
 Documentation = "https://psxdata.mintlify.app"
 
 [tool.setuptools.packages.find]

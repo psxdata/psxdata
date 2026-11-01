@@ -7,7 +7,7 @@ Thank you for your interest in contributing. This guide covers everything you ne
 ## Getting Started
 
 ```bash
-git clone https://github.com/mtauha/psxdata.git
+git clone https://github.com/psxdata/psxdata.git
 cd psxdata
 
 python -m venv .venv
@@ -24,7 +24,7 @@ pytest tests/unit/ -v           # Should pass (no network required)
 ruff check psxdata/              # Should return no errors
 ```
 
-> **Looking to contribute to the REST API?** That code now lives in [mtauha/psxdata-api](https://github.com/mtauha/psxdata-api) — open issues and PRs there instead.
+> **Looking to contribute to the REST API?** That code now lives in [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api) — open issues and PRs there instead.
 
 ---
 

@@ -1,6 +1,6 @@
 # psxdata — Python Library for Pakistan Stock Exchange (PSX) Data
 
-[![CI](https://github.com/mtauha/psxdata/actions/workflows/ci.yml/badge.svg)](https://github.com/mtauha/psxdata/actions/workflows/ci.yml)
+[![CI](https://github.com/psxdata/psxdata/actions/workflows/ci.yml/badge.svg)](https://github.com/psxdata/psxdata/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/psxdata)](https://pypi.org/project/psxdata/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/psxdata?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/psxdata)
 [![Documentation](https://img.shields.io/badge/docs-mintlify-blue)](https://psxdata.mintlify.app)
@@ -16,7 +16,7 @@
 <details>
 <summary>Alpha release note</summary>
 
-`0.1.0a1` — Core scraping, caching, and public API are complete. The FastAPI REST layer has moved to [mtauha/psxdata-api](https://github.com/mtauha/psxdata-api). APIs may change before `1.0`.
+`0.1.0a1` — Core scraping, caching, and public API are complete. The FastAPI REST layer has moved to [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api). APIs may change before `1.0`.
 
 </details>
 
@@ -130,7 +130,7 @@ Existing solutions for PSX data tend to hardcode date formats and column positio
 
 ## REST API
 
-A FastAPI REST service wrapping this library now lives in a standalone repository: **[mtauha/psxdata-api](https://github.com/mtauha/psxdata-api)**.
+A FastAPI REST service wrapping this library now lives in a standalone repository: **[psxdata/psxdata-api](https://github.com/psxdata/psxdata-api)**.
 
 It exposes the same data as this library over HTTP (`GET /stocks`, `GET /indices/{name}`, `GET /sectors`, etc.), installs `psxdata` from PyPI, and ships its own Docker image (`mtauha/psxdata-api` on Docker Hub) and CI/CD pipeline. See that repo's README for endpoints, request/response formats, and Docker run instructions.
 
@@ -138,14 +138,14 @@ It exposes the same data as this library over HTTP (`GET /stocks`, `GET /indices
 
 ## Development Status
 
-See the [roadmap issue](https://github.com/mtauha/psxdata/issues/4) for the full phase breakdown.
+See the [roadmap issue](https://github.com/psxdata/psxdata/issues/4) for the full phase breakdown.
 
 - ✅ Phase 0 — PSX endpoint research and HTML fixture capture
 - ✅ Phase 0.5 — Repository setup, CI/CD, community files
 - ✅ Phase 2 — Core engineering (BaseScraper, parsers, cache, utils)
 - ✅ Phase 3 — Scrapers (historical, real-time, indices, sectors, fundamentals, screener, debt, eligible scrips)
 - ✅ Phase 3 API — Public Python package interface
-- ✅ Phase 4 — FastAPI REST layer (now at [mtauha/psxdata-api](https://github.com/mtauha/psxdata-api))
+- ✅ Phase 4 — FastAPI REST layer (now at [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api))
 - ✅ Phase 5 — Full test suite (API layer tests pending)
 - ✅ Phase 6 — Packaging & PyPI publish
 - ✅ Phase 7 — Documentation

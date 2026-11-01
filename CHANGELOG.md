@@ -73,7 +73,7 @@ First stable release. The public API (`PSXClient`, `stocks`, `tickers`, `quote`,
 
 ### Changed
 
-- Extracted the FastAPI REST layer (`api/`) into a standalone repository, [mtauha/psxdata-api](https://github.com/mtauha/psxdata-api), with full git history preserved via `git filter-repo`. The API now ships and versions independently of this library.
+- Extracted the FastAPI REST layer (`api/`) into a standalone repository, [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api), with full git history preserved via `git filter-repo`. The API now ships and versions independently of this library.
 
 ### Added
 
@@ -161,9 +161,9 @@ First PyPI release. Core scraping library complete for all 8 PSX endpoints with 
 
 ---
 
-[Unreleased]: https://github.com/mtauha/psxdata/compare/v0.1.0a5...HEAD
-[0.1.0a5]: https://github.com/mtauha/psxdata/compare/v0.1.0a4...v0.1.0a5
-[0.1.0a4]: https://github.com/mtauha/psxdata/compare/v0.1.0a3...v0.1.0a4
-[0.1.0a3]: https://github.com/mtauha/psxdata/compare/v0.1.0a2...v0.1.0a3
-[0.1.0a2]: https://github.com/mtauha/psxdata/compare/v0.1.0a1...v0.1.0a2
-[0.1.0a1]: https://github.com/mtauha/psxdata/releases/tag/v0.1.0a1
+[Unreleased]: https://github.com/psxdata/psxdata/compare/v0.1.0a5...HEAD
+[0.1.0a5]: https://github.com/psxdata/psxdata/compare/v0.1.0a4...v0.1.0a5
+[0.1.0a4]: https://github.com/psxdata/psxdata/compare/v0.1.0a3...v0.1.0a4
+[0.1.0a3]: https://github.com/psxdata/psxdata/compare/v0.1.0a2...v0.1.0a3
+[0.1.0a2]: https://github.com/psxdata/psxdata/compare/v0.1.0a1...v0.1.0a2
+[0.1.0a1]: https://github.com/psxdata/psxdata/releases/tag/v0.1.0a1

@@ -18,7 +18,7 @@ jobs:
         env:
           DOCS_REPO_TOKEN: ${{ secrets.DOCS_REPO_TOKEN }}
         run: |
-          git clone https://x-access-token:${DOCS_REPO_TOKEN}@github.com/mtauha/psxdata-docs.git /tmp/psxdata-docs
+          git clone https://x-access-token:${DOCS_REPO_TOKEN}@github.com/psxdata/psxdata-docs.git /tmp/psxdata-docs
           printf -- '---\ntitle: "Changelog"\ndescription: "Release history for the psxdata Python SDK."\n---\n\n' > /tmp/psxdata-docs/changelog.mdx
           cat CHANGELOG.md >> /tmp/psxdata-docs/changelog.mdx
           printf -- '---\ntitle: "Contributing"\ndescription: "How to contribute to psxdata."\n---\n\n' > /tmp/psxdata-docs/contributing.mdx
