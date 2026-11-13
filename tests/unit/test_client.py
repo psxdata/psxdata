@@ -30,6 +30,9 @@ def client(tmp_path):
     c = PSXClient(cache_dir=str(tmp_path / "cache"))
     c._historical = MagicMock()
     c._screener = MagicMock()
+    c._realtime = MagicMock()
+    # Default: empty boards, so traded_today is unknown. Tests that care set their own.
+    c._realtime.fetch.return_value = pd.DataFrame()
     c._symbols = MagicMock()
     c._indices = MagicMock()
     c._sectors = MagicMock()
@@ -235,6 +238,7 @@ class TestQuote:
     def test_quote_caches_screener(self, client, screener_df):
         """Screener is fetched once; subsequent calls for different symbols reuse it."""
         client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(_main(["ENGRO"]))
         client.quote("ENGRO", cache=True)
         client.quote("LUCK", cache=True)
         client._screener.fetch.assert_called_once()
@@ -298,20 +302,156 @@ class TestSectors:
 # fundamentals()
 # ---------------------------------------------------------------------------
 
+from psxdata.constants import TRADED_TODAY_MIN_SYMBOLS  # noqa: E402
+
+# Filler symbols so the main board looks like a populated session.
+_FILLER = [f"X{i:03d}" for i in range(TRADED_TODAY_MIN_SYMBOLS)]
+
+
+def _board(symbols, volumes=None):
+    volumes = volumes if volumes is not None else [1000] * len(symbols)
+    return pd.DataFrame({"symbol": symbols, "volume": volumes})
+
+
+def _main(symbols=(), volumes=None):
+    """A populated REG main board: the given symbols plus enough filler."""
+    symbols = list(symbols)
+    volumes = list(volumes) if volumes is not None else [1000] * len(symbols)
+    return _board(symbols + _FILLER, volumes + [1000] * len(_FILLER))
+
+
+def _boards(main, gem=None):
+    """side_effect for RealtimeScraper.fetch(market, board)."""
+    tables = {("REG", "main"): main, ("REG", "gem"): gem if gem is not None else pd.DataFrame()}
+
+    def fetch(market, board):
+        table = tables[(market, board)]
+        if isinstance(table, Exception):
+            raise table
+        return table
+
+    return fetch
+
+
+def _flags(client):
+    return client.screener(cache=False).set_index("symbol")["traded_today"]
+
+
 class TestScreener:
-    def test_screener_returns_dataframe(self, client, screener_df):
-        """screener() returns the full, unfiltered screener DataFrame."""
+    def test_screener_returns_all_rows_unfiltered(self, client, screener_df):
+        """screener() returns every screener row, with traded_today added."""
         client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(_main(["ENGRO", "LUCK", "HBL"]))
         result = client.screener(cache=False)
         client._screener.fetch.assert_called_once()
-        pd.testing.assert_frame_equal(result, screener_df)
+        pd.testing.assert_frame_equal(result.drop(columns="traded_today"), screener_df)
 
     def test_screener_shares_cache_with_quote(self, client, screener_df):
-        """screener() and quote() share the 'screener_all' cache key."""
+        """screener() and quote() share one cached snapshot."""
         client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(_main(["ENGRO"]))
         client.quote("ENGRO", cache=True)
-        client.screener(cache=True)
+        result = client.screener(cache=True)
         client._screener.fetch.assert_called_once()
+        assert client._realtime.fetch.call_count == 2  # REG main + REG gem, once
+        assert str(result["traded_today"].dtype) == "boolean"  # survives the cache
+        assert bool(result.set_index("symbol").loc["ENGRO", "traded_today"]) is True
+
+    def test_traded_today_marks_symbols_on_the_boards(self, client, screener_df):
+        """traded_today: volume > 0 on REG main or REG gem."""
+        client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(
+            main=_main(["ENGRO", "LUCK"], [5000, 0]),
+            gem=_board(["HBL"]),
+        )
+        result = _flags(client)
+        assert result.to_dict() == {"ENGRO": True, "LUCK": False, "HBL": True}
+        assert str(result.dtype) == "boolean"
+
+    def test_traded_today_false_for_delisted_ghost_row(self, client):
+        """PSX keeps delisted names (e.g. FFBL) in the screener with their
+        last-day move; they never appear on the board."""
+        client._screener.fetch.return_value = pd.DataFrame(
+            {"symbol": ["FFBL", "FFC"], "price": [88.94, 400.0], "change_pct": [8.07, 0.5]}
+        )
+        client._realtime.fetch.side_effect = _boards(_main(["FFC"]))
+        assert _flags(client).to_dict() == {"FFBL": False, "FFC": True}
+
+    def test_nan_and_text_volume_count_as_no_trade(self, client, screener_df):
+        client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(
+            _main(["ENGRO", "LUCK", "HBL"], [float("nan"), "-", "abc"])
+        )
+        assert _flags(client).to_dict() == {"ENGRO": False, "LUCK": False, "HBL": False}
+
+    def test_unknown_when_boards_empty(self, client, screener_df):
+        """An empty board (e.g. before PSX publishes the session) is not
+        evidence that nothing traded: the flag is <NA>, not False."""
+        client._screener.fetch.return_value = screener_df
+        result = client.screener(cache=False)
+        assert result["traded_today"].isna().all()
+        assert str(result["traded_today"].dtype) == "boolean"
+
+    def test_unknown_when_main_empty_even_if_gem_has_rows(self, client, screener_df):
+        client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(main=pd.DataFrame(), gem=_board(["HBL"]))
+        assert _flags(client).isna().all()
+
+    def test_unknown_when_main_board_part_populated(self, client, screener_df, caplog):
+        """Fewer than TRADED_TODAY_MIN_SYMBOLS traded: treat as not yet populated."""
+        client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(_board(["ENGRO", "LUCK"]))
+        with caplog.at_level("WARNING"):
+            assert _flags(client).isna().all()
+        assert "only 2 traded symbols" in caplog.text
+
+    def test_unknown_when_main_board_has_no_volume_column(self, client, screener_df):
+        client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(pd.DataFrame({"symbol": _FILLER}))
+        assert _flags(client).isna().all()
+
+    @pytest.mark.parametrize("exc", ["psx", "other"])
+    def test_unknown_when_main_board_fetch_fails(self, client, screener_df, caplog, exc):
+        """No board error, PSX or otherwise, fails screener(); the flag is <NA>."""
+        from psxdata.exceptions import PSXConnectionError
+
+        client._screener.fetch.return_value = screener_df
+        err = PSXConnectionError("boom") if exc == "psx" else ValueError("schema changed")
+        client._realtime.fetch.side_effect = _boards(main=err)
+        with caplog.at_level("WARNING"):
+            result = client.screener(cache=False)
+        assert len(result) == 3
+        assert result["traded_today"].isna().all()
+        assert "REG main trading board" in caplog.text
+
+    def test_gem_failure_keeps_main_traders(self, client, screener_df):
+        """If only GEM fails, main-board traders are True and the rest unknown."""
+        client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(
+            main=_main(["ENGRO"]), gem=RuntimeError("gem down")
+        )
+        result = _flags(client)
+        assert bool(result["ENGRO"]) is True
+        assert result[["LUCK", "HBL"]].isna().all()
+
+    def test_unknown_flag_is_not_cached(self, client, screener_df):
+        """A board blip shouldn't stick for the cache TTL."""
+        client._screener.fetch.return_value = screener_df
+        client.screener(cache=True)  # boards empty -> <NA>
+        client._realtime.fetch.side_effect = _boards(_main(["ENGRO"]))
+        result = client.screener(cache=True)
+        assert client._screener.fetch.call_count == 2
+        assert bool(result.set_index("symbol").loc["ENGRO", "traded_today"]) is True
+
+    def test_quote_includes_traded_today(self, client, screener_df):
+        client._screener.fetch.return_value = screener_df
+        client._realtime.fetch.side_effect = _boards(_main(["LUCK"]))
+        assert bool(client.quote("LUCK", cache=False)["traded_today"].iloc[0]) is True
+
+    def test_empty_screener_skips_board_fetch(self, client):
+        client._screener.fetch.return_value = pd.DataFrame()
+        assert client.screener(cache=False).empty
+        client._realtime.fetch.assert_not_called()
 
 
 class TestFundamentals:

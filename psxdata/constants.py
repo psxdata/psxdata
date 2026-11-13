@@ -88,6 +88,11 @@ INDEX_NAMES: tuple[str, ...] = (
 CACHE_DIR: str = "~/.psxdata/cache/"
 CACHE_TTL_TODAY: int = 900  # 15 minutes in seconds
 
+# screener() traded_today: if fewer symbols than this have volume on the REG
+# main board, the board is treated as not yet populated (pre-open, early
+# session) and the flag is <NA>. A full session has ~450-500.
+TRADED_TODAY_MIN_SYMBOLS: int = 100
+
 # ---------------------------------------------------------------------------
 # Column name mapping
 # Raw PSX <th> header text -> internal snake_case name.

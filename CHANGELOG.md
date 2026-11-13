@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `screener()` and `quote()` now include `traded_today`, a nullable boolean. PSX keeps some symbols in its screener after they stop trading, including delisted ones such as FFBL and ENGRO, and shows their last trading day's price and `change_pct` as if current. `traded_today` is `True` when the symbol has volume on the regular-market main or GEM trading board so far in the session, `False` when it doesn't, and `<NA>` when the board can't be read, is empty, or has fewer than 100 traded symbols (not yet populated). Filter on it before ranking daily moves. `False` never means delisted; during the session it only means "no trade yet". A board failure never fails `screener()`, and a result with an unknown flag isn't cached. Each screener fetch now makes two extra requests (REG main and GEM boards), so a slow or failing board adds latency to `screener()` and `quote()` on a cache miss.
+
 ---
 
 ## [1.2.1] - 2026-11-01

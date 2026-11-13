@@ -73,7 +73,7 @@ scrips = psxdata.eligible_scrips()
 | `psxdata.tickers()`                  | All listed tickers (1000+)                       |
 | `psxdata.symbols()`                  | Symbol/sector/name metadata, optionally filtered |
 | `psxdata.quote(symbol)`              | Live quote row for a ticker                      |
-| `psxdata.screener()`                 | Full, unfiltered screener table (~729 symbols)   |
+| `psxdata.screener()`                 | Full screener (~750 symbols) + `traded_today`   |
 | `psxdata.indices(name)`              | Constituents of a named index (e.g.`"KSE100"`) |
 | `psxdata.sectors()`                  | Sector aggregates DataFrame (37 sectors)         |
 | `psxdata.fundamentals(symbol)`       | Financial reports for a ticker                   |
