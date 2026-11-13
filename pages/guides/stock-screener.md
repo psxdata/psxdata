@@ -55,8 +55,33 @@ print(screen.head())
 
 !!! note
     Screener data refreshes every 15 minutes. psxdata caches the full screener
-    and serves all subsequent `quote()` calls from that cache — so screening
-    all 100 stocks costs only one network request.
+    and serves all subsequent `quote()` calls from that cache, so screening
+    all 100 stocks costs one screener fetch (plus the trading-board check below).
+
+## Rank today's movers
+
+PSX keeps some symbols in its screener after they stop trading, including
+delisted ones, showing their last trading day's price and `change_pct` as if
+current. Use `traded_today` to keep only symbols that traded in the session:
+
+```python
+import psxdata
+
+df = psxdata.screener()
+traded = df[df["traded_today"].fillna(False)]
+print(traded.nlargest(10, "change_pct")[["symbol", "price", "change_pct"]])
+```
+
+`traded_today` is `True` when the symbol has volume on PSX's regular-market
+main or GEM trading board so far in the session, and `False` when it doesn't.
+It is `<NA>` when the board can't be read, is empty, or isn't populated yet
+(fewer than 100 traded symbols, e.g. before the open). `False` never means
+delisted; during the session it only means "no trade yet".
+
+!!! warning
+    `fillna(False)` drops every row when the flag is unknown, so the example
+    above prints nothing in that case. Check `df["traded_today"].isna().all()`
+    if an empty result would be misleading.
 
 ## See also
 

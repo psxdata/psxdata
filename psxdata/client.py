@@ -14,13 +14,14 @@ from datetime import date
 import pandas as pd
 
 from psxdata.cache.disk_cache import DiskCache
-from psxdata.constants import CACHE_DIR, CACHE_TTL_TODAY
+from psxdata.constants import CACHE_DIR, CACHE_TTL_TODAY, TRADED_TODAY_MIN_SYMBOLS
 from psxdata.proxy import ProxyConfig, describe_proxies, normalize_proxy
 from psxdata.scrapers.debt_market import DebtMarketScraper
 from psxdata.scrapers.eligible_scrips import EligibleScripsScraper
 from psxdata.scrapers.fundamentals import FundamentalsScraper
 from psxdata.scrapers.historical import HistoricalScraper
 from psxdata.scrapers.indices import IndicesScraper
+from psxdata.scrapers.realtime import RealtimeScraper
 from psxdata.scrapers.screener import ScreenerScraper
 from psxdata.scrapers.sectors import SectorsScraper
 from psxdata.scrapers.symbols import SymbolsScraper
@@ -69,6 +70,7 @@ class PSXClient:
         self._cache = DiskCache(cache_dir)
         self._historical = HistoricalScraper(proxy=proxies)
         self._screener = ScreenerScraper(proxy=proxies)
+        self._realtime = RealtimeScraper(proxy=proxies)
         self._symbols = SymbolsScraper(proxy=proxies)
         self._indices = IndicesScraper(proxy=proxies)
         self._sectors = SectorsScraper(proxy=proxies)
@@ -178,24 +180,15 @@ class PSXClient:
             cache: If ``False``, bypass cache and always fetch the screener.
 
         Returns:
-            Single-row DataFrame with screener columns (symbol, sector, price, …).
+            Single-row DataFrame with screener columns (symbol, sector, price,
+            …, traded_today); see ``screener()`` for ``traded_today``.
             Empty DataFrame if the symbol is not present in the screener.
 
         Raises:
             PSXConnectionError: Network failure after retries.
             PSXServerError: 5xx after retries.
         """
-        cache_key = "screener_all"
-        screener_df: pd.DataFrame | None = None
-
-        if cache:
-            screener_df = self._cache.get(cache_key)
-
-        if screener_df is None:
-            logger.debug("Fetching screener from PSX")
-            screener_df = self._screener.fetch()
-            if cache and not screener_df.empty:
-                self._cache.set(cache_key, screener_df, ttl=CACHE_TTL_TODAY)
+        screener_df = self._screener_snapshot(cache)
 
         if screener_df.empty or "symbol" not in screener_df.columns:
             return pd.DataFrame()
@@ -206,23 +199,43 @@ class PSXClient:
     def screener(self, cache: bool = True) -> pd.DataFrame:
         """Return the full PSX screener table, unfiltered.
 
-        Shares the 'screener_all' cache key with quote(), so calling both
-        never results in a double fetch.
+        Shares one cached snapshot with quote(), so calling both never
+        results in a double fetch.
+
+        PSX keeps some symbols in its screener after they stop trading,
+        including delisted ones, showing their last trading day's price and
+        ``change_pct``. ``traded_today`` tells them apart: filter on it before
+        ranking daily moves or volume.
 
         Args:
             cache: If ``False``, bypass cache and always fetch from PSX.
 
         Returns:
             DataFrame with columns: symbol, sector, listed_in, market_cap,
-            price, pe_ratio, dividend_yield, free_float, volume_avg_30d,
-            change_1y_pct (~729 rows, one per PSX-listed symbol).
+            price, change_pct, change_1y_pct, pe_ratio, dividend_yield,
+            free_float, volume_avg_30d, traded_today (~750 rows, one per
+            symbol in PSX's screener).
+
+            ``traded_today`` (nullable boolean) is ``True`` when the symbol
+            has volume on PSX's regular-market main or GEM trading board in
+            the session the board currently shows, so far; ``False`` when it
+            doesn't; and ``<NA>`` when the board can't be read, is empty, or
+            shows fewer than ``TRADED_TODAY_MIN_SYMBOLS`` traded symbols
+            (treated as not yet populated). During a session, ``False`` only
+            means "no trade yet". At no point does ``False`` mean delisted.
+            How PSX's board behaves outside market hours is not verified.
+
             Empty DataFrame if PSX returns no data.
 
         Raises:
             PSXConnectionError: Network failure after retries.
             PSXServerError: 5xx after retries.
         """
-        cache_key = "screener_all"
+        return self._screener_snapshot(cache)
+
+    def _screener_snapshot(self, cache: bool) -> pd.DataFrame:
+        """Screener table plus ``traded_today``, cached for CACHE_TTL_TODAY."""
+        cache_key = "screener_snapshot"
         df: pd.DataFrame | None = None
 
         if cache:
@@ -231,10 +244,52 @@ class PSXClient:
         if df is None:
             logger.debug("Fetching screener from PSX")
             df = self._screener.fetch()
-            if cache and not df.empty:
+            flag_known = True
+            if not df.empty and "symbol" in df.columns:
+                df = df.assign(traded_today=self._traded_today(df["symbol"]))
+                flag_known = bool(df["traded_today"].notna().any())
+            # Don't let one board hiccup stick for the whole TTL.
+            if cache and not df.empty and flag_known:
                 self._cache.set(cache_key, df, ttl=CACHE_TTL_TODAY)
 
         return df if df is not None else pd.DataFrame()
+
+    def _board_traded(self, board: str) -> set[str] | None:
+        """Symbols with volume > 0 on REG ``board``; None if it can't be read."""
+        try:
+            df = self._realtime.fetch("REG", board)
+        except Exception as exc:  # a missing flag must never fail screener()
+            logger.warning("Could not read the REG %s trading board: %s", board, exc)
+            return None
+        if df.empty or "symbol" not in df.columns or "volume" not in df.columns:
+            return set()
+        volume = pd.to_numeric(df["volume"], errors="coerce").fillna(0)
+        return set(df.loc[volume > 0, "symbol"].astype(str))
+
+    def _traded_today(self, symbols: pd.Series) -> pd.Series:
+        """Nullable-boolean flag: symbol has volume on REG main or REG gem.
+
+        The main board decides whether the flag is known at all: if it can't
+        be read or shows fewer than TRADED_TODAY_MIN_SYMBOLS traded symbols
+        (pre-open, early session, outage), every row is <NA>. If only the GEM
+        board fails, main-board traders are True and the rest <NA>.
+        """
+        unknown = pd.Series(pd.NA, index=symbols.index, dtype="boolean")
+
+        main = self._board_traded("main")
+        if main is None or len(main) < TRADED_TODAY_MIN_SYMBOLS:
+            if main is not None:
+                logger.warning(
+                    "REG main board shows only %d traded symbols; traded_today is unknown",
+                    len(main),
+                )
+            return unknown
+
+        flag = symbols.isin(main).astype("boolean")
+        gem = self._board_traded("gem")
+        if gem is None:
+            return flag.where(flag, pd.NA)
+        return flag | symbols.isin(gem).astype("boolean")
 
     def tickers(self, index: str | None = None, cache: bool = True) -> list[str]:
         """Return PSX ticker symbols, optionally filtered to an index.
