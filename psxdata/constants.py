@@ -76,6 +76,10 @@ TOKEN_RETRY_BACKOFF: int = 60  # seconds before retrying after a failed token fe
 BOARDS: tuple[str, ...] = ("main", "gem", "bnb")
 MARKETS: tuple[str, ...] = ("REG", "ODL", "DFC", "SQR", "CSF")
 
+# Badges PSX shows next to a ticker that mark a corporate action:
+# XD ex-dividend, XB ex-bonus, XR ex-rights. Others (e.g. NC) are not.
+EX_FLAGS: frozenset[str] = frozenset({"XD", "XB", "XR"})
+
 INDEX_NAMES: tuple[str, ...] = (
     "KSE100", "KSE100PR", "ALLSHR", "KSE30", "KMI30", "BKTI", "OGTI",
     "KMIALLSHR", "PSXDIV20", "UPP9", "NITPGI", "NBPPGI", "MZNPI",

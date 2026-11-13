@@ -58,3 +58,17 @@ class TestIndicesScraper:
             df = scraper.fetch("KSE100")
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
+
+
+class TestIndicesBadges:
+    def test_real_fixture_returns_ex_flag_as_string_dtype(self):
+        from psxdata.scrapers.indices import IndicesScraper
+
+        scraper = IndicesScraper()
+        html = (Path(__file__).parent.parent / "fixtures" / "indices_KSE100.html").read_text(encoding="utf-8")
+        with patch.object(scraper._session, "request", return_value=_mock_response(html)):
+            df = scraper.fetch("KSE100")
+        assert str(df["ex_flag"].dtype) == "string"
+        assert str(df["badge"].dtype) == "string"
+        assert (df["ex_flag"] == "XD").sum() >= 1
+        assert df.loc[df["ex_flag"].notna(), "symbol"].str.match(r"^[A-Z0-9]+$").all()

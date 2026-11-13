@@ -29,6 +29,16 @@ from psxdata.scrapers.symbols import SymbolsScraper
 logger = logging.getLogger(__name__)
 
 
+def _with_badge_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Guarantee ``badge``/``ex_flag`` on any frame with a symbol column, so a
+    cached frame lacking them can only be one cached by an older psxdata."""
+    if not df.empty and "symbol" in df.columns:
+        for col in ("badge", "ex_flag"):
+            if col not in df.columns:
+                df = df.assign(**{col: pd.Series(pd.NA, index=df.index, dtype="string")})
+    return df
+
+
 def _today() -> pd.Timestamp:
     """Return today's date as a normalized Timestamp. Extracted for testability."""
     return pd.Timestamp.today().normalize()
@@ -214,7 +224,12 @@ class PSXClient:
             DataFrame with columns: symbol, sector, listed_in, market_cap,
             price, change_pct, change_1y_pct, pe_ratio, dividend_yield,
             free_float, volume_avg_30d, traded_today, sector_code,
-            sector_name (~750 rows, one per symbol in PSX's screener).
+            sector_name, badge, ex_flag (~750 rows, one per symbol in PSX's
+            screener).
+
+            ``badge`` is the badge PSX shows next to the ticker (XD, NC, ...)
+            and ``ex_flag`` the corporate-action ones only (XD ex-dividend,
+            XB ex-bonus, XR ex-rights); both <NA> otherwise.
 
             ``sector`` is PSX's sector code parsed as a number (809.0).
             ``sector_code`` is the same code as PSX writes it ("0809") and
@@ -248,12 +263,16 @@ class PSXClient:
         if cache:
             df = self._cache.get(cache_key)
             # A snapshot cached by an older psxdata lacks the newer columns.
-            if df is not None and "sector" in df.columns and "sector_code" not in df.columns:
+            if df is not None and (
+                ("sector" in df.columns and "sector_code" not in df.columns)
+                or ("symbol" in df.columns and "ex_flag" not in df.columns)
+            ):
                 df = None
 
         if df is None:
             logger.debug("Fetching screener from PSX")
             df = self._screener.fetch()
+            df = _with_badge_columns(df)
             flag_known = True
             if not df.empty and "symbol" in df.columns:
                 df = df.assign(traded_today=self._traded_today(df["symbol"]))
@@ -383,6 +402,9 @@ class PSXClient:
         Returns:
             DataFrame with columns: symbol, current_index, idx_weight,
             idx_point, market_cap_m, and either freefloat_m or shares_m.
+            Plus ``badge``/``ex_flag``: the badge PSX shows next to the ticker
+            and, when it marks a corporate action, that code (XD ex-dividend,
+            XB ex-bonus, XR ex-rights); <NA> otherwise.
             Empty DataFrame if PSX returns no data.
 
         Raises:
@@ -554,10 +576,14 @@ class PSXClient:
 
         if cache:
             df = self._cache.get(cache_key)
+            # Cached by psxdata < 1.5.0, before symbol badges were returned.
+            if df is not None and "symbol" in df.columns and "ex_flag" not in df.columns:
+                df = None
 
         if df is None:
             logger.debug("Fetching index %s from PSX", name)
             df = self._indices.fetch(name)
+            df = _with_badge_columns(df)
             if cache and not df.empty:
                 self._cache.set(cache_key, df, ttl=CACHE_TTL_TODAY)
 

@@ -9,9 +9,10 @@ from __future__ import annotations
 import logging
 import re
 
+import pandas as pd
 from bs4 import BeautifulSoup, Tag
 
-from psxdata.constants import COLUMN_MAP
+from psxdata.constants import COLUMN_MAP, EX_FLAGS
 from psxdata.parsers.normalizers import normalize_column_name
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,9 @@ def _cell_value(td: Tag, headers: list[str], index: int) -> str:
     return text
 
 
-def parse_table_rows(table: Tag, headers: list[str]) -> list[dict[str, str]]:
+def parse_table_rows(
+    table: Tag, headers: list[str], badges: bool = False
+) -> list[dict[str, str | None]]:
     """Map <tr><td> rows to dicts keyed by normalised header name.
 
     Rows with a different cell count than headers get a warning logged but
@@ -76,16 +79,21 @@ def parse_table_rows(table: Tag, headers: list[str]) -> list[dict[str, str]]:
     Args:
         table: A single <table> BeautifulSoup element.
         headers: Normalised column names from extract_table_headers.
+        badges: Also return ``badge`` and ``ex_flag`` for the ticker badge PSX
+            shows in the symbol cell (see ``_symbol_badge``). Only used when
+            the table has a ``symbol`` column.
 
     Returns:
         List of row dicts mapping header name -> raw cell text.
     """
-    rows: list[dict[str, str]] = []
+    rows: list[dict[str, str | None]] = []
     tbody = table.find("tbody")
     tr_tags = tbody.find_all("tr") if tbody else table.find_all("tr")
+    symbol_index = headers.index("symbol") if badges and "symbol" in headers else None
 
     for tr in tr_tags:
-        cells = [_cell_value(td, headers, i) for i, td in enumerate(tr.find_all("td"))]
+        tds = tr.find_all("td")
+        cells = [_cell_value(td, headers, i) for i, td in enumerate(tds)]
         if not cells:
             continue
         if len(cells) != len(headers):
@@ -94,12 +102,49 @@ def parse_table_rows(table: Tag, headers: list[str]) -> list[dict[str, str]]:
                 len(cells),
                 len(headers),
             )
-        row = {headers[i]: cells[i] for i in range(min(len(headers), len(cells)))}
+        row: dict[str, str | None] = {
+            headers[i]: cells[i] for i in range(min(len(headers), len(cells)))
+        }
+        if symbol_index is not None:
+            row.update(_symbol_badge(tds, symbol_index))
         rows.append(row)
     return rows
 
 
-def parse_html_table(html: str) -> list[dict[str, str]]:
+def string_badges(df: pd.DataFrame) -> pd.DataFrame:
+    """Give ``badge``/``ex_flag`` one dtype (pandas "string", <NA> when empty),
+    whether or not any row on the page had a badge."""
+    for col in ("badge", "ex_flag"):
+        if col in df.columns:
+            df[col] = df[col].astype("string")
+    return df
+
+
+_EX_FLAG = re.compile(r"^X[A-Z]{1,3}$")
+
+
+def _symbol_badge(tds: list[Tag], symbol_index: int) -> dict[str, str | None]:
+    """The badge(s) PSX shows next to a ticker (``<div class="tag ...">XD</div>``).
+
+    ``badge`` is the badge text, upper-cased; several badges are joined with
+    ``+``. ``ex_flag`` keeps only the corporate-action badges (XD ex-dividend,
+    XB ex-bonus, XR ex-rights, and any other ``X`` code PSX adds), joined the
+    same way. Either is None when there is nothing to report.
+    """
+    texts: list[str] = []
+    if symbol_index < len(tds):
+        for tag in tds[symbol_index].find_all("div", class_="tag"):
+            text = tag.get_text(strip=True).upper()
+            if text:
+                texts.append(text)
+    ex = [t for t in texts if t in EX_FLAGS or _EX_FLAG.match(t)]
+    unknown = [t for t in ex if t not in EX_FLAGS]
+    if unknown:
+        logger.warning("Unrecognised PSX corporate-action badge(s): %s", unknown)
+    return {"badge": "+".join(texts) or None, "ex_flag": "+".join(ex) or None}
+
+
+def parse_html_table(html: str, badges: bool = False) -> list[dict[str, str | None]]:
     """Parse the first HTML table in html, returning rows as normalised dicts.
 
     Both headers and rows are scoped to the same first <table> element,
@@ -109,6 +154,8 @@ def parse_html_table(html: str) -> list[dict[str, str]]:
 
     Args:
         html: Raw HTML string from a PSX endpoint response.
+        badges: Also return ``badge``/``ex_flag`` for symbol cells (see
+            ``parse_table_rows``).
 
     Returns:
         List of row dicts. Each dict maps normalised column name -> raw string value.
@@ -122,10 +169,10 @@ def parse_html_table(html: str) -> list[dict[str, str]]:
     if not headers:
         logger.warning("No table headers found in HTML — returning empty result")
         return []
-    return parse_table_rows(table, headers)
+    return parse_table_rows(table, headers, badges=badges)
 
 
-def parse_tables_by_heading(html: str) -> dict[str, list[dict[str, str]]]:
+def parse_tables_by_heading(html: str) -> dict[str, list[dict[str, str | None]]]:
     """Parse multiple HTML tables keyed by the preceding <h2> heading.
 
     Used by debt_market.py and eligible_scrips.py. Each table is associated
@@ -144,7 +191,7 @@ def parse_tables_by_heading(html: str) -> dict[str, list[dict[str, str]]]:
     if not tables:
         return {}
 
-    result: dict[str, list[dict[str, str]]] = {}
+    result: dict[str, list[dict[str, str | None]]] = {}
     for i, table in enumerate(tables):
         # Walk backwards through previous siblings to find nearest <h2>
         heading: str | None = None

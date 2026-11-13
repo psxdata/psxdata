@@ -64,3 +64,16 @@ class TestRealtimeScraper:
             df = scraper.fetch("REG", "main")
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
+
+
+class TestBoardBadges:
+    def test_board_without_badges_still_has_string_columns(self):
+        from psxdata.scrapers.realtime import RealtimeScraper
+
+        scraper = RealtimeScraper()
+        html = (Path(__file__).parent.parent / "fixtures" / "trading_board_reg_gem.html").read_text(encoding="utf-8")
+        with patch.object(scraper._session, "request", return_value=_mock_response(html)):
+            df = scraper.fetch("REG", "gem")
+        if not df.empty:
+            assert str(df["ex_flag"].dtype) == "string"
+            assert df["ex_flag"].isna().all()

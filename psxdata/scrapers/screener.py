@@ -14,7 +14,7 @@ import logging
 
 import pandas as pd
 
-from psxdata.parsers.html import parse_html_table
+from psxdata.parsers.html import parse_html_table, string_badges
 from psxdata.parsers.normalizers import coerce_numeric
 from psxdata.scrapers.base import BaseScraper
 
@@ -41,13 +41,15 @@ class ScreenerScraper(BaseScraper):
         """
         logger.debug("Fetching screener data")
         resp = self._get("screener")
-        rows = parse_html_table(resp.text)
+        rows = parse_html_table(resp.text, badges=True)
 
         if not rows:
             logger.warning("Screener returned no data")
             return pd.DataFrame()
 
         df = pd.DataFrame(rows)
+
+        df = string_badges(df)
         logger.debug("Parsed %d screener rows", len(df))
 
         numeric_cols = ("market_cap", "price", "pe_ratio", "dividend_yield",

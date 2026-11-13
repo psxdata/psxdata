@@ -19,7 +19,7 @@ import logging
 
 import pandas as pd
 
-from psxdata.parsers.html import parse_html_table
+from psxdata.parsers.html import parse_html_table, string_badges
 from psxdata.parsers.normalizers import coerce_numeric
 from psxdata.scrapers.base import BaseScraper
 
@@ -49,13 +49,15 @@ class RealtimeScraper(BaseScraper):
         logger.debug("Fetching trading board: market=%s board=%s", market, board)
         url = self._build_url("trading_board") + f"/{market}/{board}"
         resp = self._request("GET", url)
-        rows = parse_html_table(resp.text)
+        rows = parse_html_table(resp.text, badges=True)
 
         if not rows:
             logger.warning("Trading board %s/%s returned no data", market, board)
             return pd.DataFrame()
 
         df = pd.DataFrame(rows)
+
+        df = string_badges(df)
         logger.debug("Parsed %d rows for %s/%s", len(df), market, board)
 
         numeric_cols = (

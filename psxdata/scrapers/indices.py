@@ -18,7 +18,7 @@ import logging
 
 import pandas as pd
 
-from psxdata.parsers.html import parse_html_table
+from psxdata.parsers.html import parse_html_table, string_badges
 from psxdata.parsers.normalizers import coerce_numeric
 from psxdata.scrapers.base import BaseScraper
 
@@ -48,13 +48,15 @@ class IndicesScraper(BaseScraper):
         logger.debug("Fetching index constituents for %s", name)
         url = self._build_url("indices") + f"/{name}"
         resp = self._request("GET", url)
-        rows = parse_html_table(resp.text)
+        rows = parse_html_table(resp.text, badges=True)
 
         if not rows:
             logger.warning("Index %s returned no data", name)
             return pd.DataFrame()
 
         df = pd.DataFrame(rows)
+
+        df = string_badges(df)
         logger.debug("Parsed %d rows for index %s", len(df), name)
 
         numeric_cols = (
