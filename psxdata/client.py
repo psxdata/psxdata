@@ -172,7 +172,7 @@ class PSXClient:
     def quote(self, symbol: str, cache: bool = True) -> pd.DataFrame:
         """Fetch the latest screener snapshot for a symbol.
 
-        The full screener (~729 symbols) is fetched once and cached for 15 minutes.
+        The full screener (~750 symbols) is fetched once and cached for 15 minutes.
         Successive calls for different symbols reuse the same cached screener.
 
         Args:
@@ -181,7 +181,7 @@ class PSXClient:
 
         Returns:
             Single-row DataFrame with screener columns (symbol, sector, price,
-            …, traded_today); see ``screener()`` for ``traded_today``.
+            …, traded_today, sector_code, sector_name); see ``screener()``.
             Empty DataFrame if the symbol is not present in the screener.
 
         Raises:
@@ -213,8 +213,15 @@ class PSXClient:
         Returns:
             DataFrame with columns: symbol, sector, listed_in, market_cap,
             price, change_pct, change_1y_pct, pe_ratio, dividend_yield,
-            free_float, volume_avg_30d, traded_today (~750 rows, one per
-            symbol in PSX's screener).
+            free_float, volume_avg_30d, traded_today, sector_code,
+            sector_name (~750 rows, one per symbol in PSX's screener).
+
+            ``sector`` is PSX's sector code parsed as a number (809.0).
+            ``sector_code`` is the same code as PSX writes it ("0809") and
+            ``sector_name`` its name from ``sectors()`` ("FERTILIZER"); both
+            are ``<NA>`` when PSX gives no sector, and ``sector_name`` is
+            ``<NA>`` if the sector list can't be read. ``pe_ratio`` is 0 when
+            PSX shows no meaningful P/E (e.g. loss-making companies).
 
             ``traded_today`` (nullable boolean) is ``True`` when the symbol
             has volume on PSX's regular-market main or GEM trading board in
@@ -234,12 +241,15 @@ class PSXClient:
         return self._screener_snapshot(cache)
 
     def _screener_snapshot(self, cache: bool) -> pd.DataFrame:
-        """Screener table plus ``traded_today``, cached for CACHE_TTL_TODAY."""
+        """Screener table plus ``traded_today`` and sector columns, cached for CACHE_TTL_TODAY."""
         cache_key = "screener_snapshot"
         df: pd.DataFrame | None = None
 
         if cache:
             df = self._cache.get(cache_key)
+            # A snapshot cached by an older psxdata lacks the newer columns.
+            if df is not None and "sector" in df.columns and "sector_code" not in df.columns:
+                df = None
 
         if df is None:
             logger.debug("Fetching screener from PSX")
@@ -248,11 +258,44 @@ class PSXClient:
             if not df.empty and "symbol" in df.columns:
                 df = df.assign(traded_today=self._traded_today(df["symbol"]))
                 flag_known = bool(df["traded_today"].notna().any())
-            # Don't let one board hiccup stick for the whole TTL.
+            if not df.empty and "sector" in df.columns:
+                code = self._sector_code(df["sector"])
+                df = df.assign(sector_code=code, sector_name=self._sector_names(code, cache))
+            # Don't let one board hiccup stick for the whole TTL. Unknown sector
+            # names are cached anyway: refetching the screener and both boards
+            # on every quote() during a sector-list outage would cost far more.
             if cache and not df.empty and flag_known:
                 self._cache.set(cache_key, df, ttl=CACHE_TTL_TODAY)
 
         return df if df is not None else pd.DataFrame()
+
+    @staticmethod
+    def _normalize_code(values: pd.Series) -> pd.Series:
+        """Sector codes as PSX writes them ("0809"); <NA> for anything that isn't one."""
+        numeric = pd.to_numeric(values, errors="coerce")
+        valid = numeric.notna() & (numeric >= 0) & (numeric % 1 == 0) & (numeric < 1e9)
+        code = numeric[valid].astype("int64").astype(str).str.zfill(4)
+        return code.reindex(values.index).astype("string")
+
+    @classmethod
+    def _sector_code(cls, sector: pd.Series) -> pd.Series:
+        """PSX's 4-character sector code; the scraper parses it as a number (809.0)."""
+        return cls._normalize_code(sector)
+
+    def _sector_names(self, code: pd.Series, cache: bool) -> pd.Series:
+        """Sector name for each code via sectors(); all <NA> if that can't be read."""
+        unknown = pd.Series(pd.NA, index=code.index, dtype="string")
+        try:
+            sectors = self.sectors(cache=cache)
+        except Exception as exc:  # a missing name must never fail screener()
+            logger.warning("Could not read PSX sectors; sector names unknown: %s", exc)
+            return unknown
+        if sectors.empty or not {"sector_code", "sector_name"} <= set(sectors.columns):
+            logger.warning("PSX sectors list is empty; sector names unknown")
+            return unknown
+        keys = self._normalize_code(sectors["sector_code"])
+        names = dict(zip(keys.dropna(), sectors.loc[keys.notna(), "sector_name"].astype(str)))
+        return code.map(names).astype("string")
 
     def _board_traded(self, board: str) -> set[str] | None:
         """Symbols with volume > 0 on REG ``board``; None if it can't be read."""
@@ -622,7 +665,8 @@ def quote(symbol: str, cache: bool = True) -> pd.DataFrame:
         cache: If ``False``, bypass cache and always fetch the screener.
 
     Returns:
-        Single-row DataFrame with screener columns (symbol, sector, ldcp, ...).
+        Single-row DataFrame with screener columns (symbol, sector, price, ...,
+        traded_today, sector_code, sector_name).
         Empty DataFrame if the symbol is not present in the screener.
 
     Raises:
@@ -641,16 +685,18 @@ def quote(symbol: str, cache: bool = True) -> pd.DataFrame:
 def screener(cache: bool = True) -> pd.DataFrame:
     """Return the full PSX screener table, unfiltered.
 
-    Shares the 'screener_all' cache key with quote(), so calling both
-    never results in a double fetch.
+    Shares one cached snapshot with quote(), so calling both never results
+    in a double fetch. See ``PSXClient.screener`` for ``traded_today`` and the
+    sector columns.
 
     Args:
         cache: If ``False``, bypass cache and always fetch from PSX.
 
     Returns:
         DataFrame with columns: symbol, sector, listed_in, market_cap,
-        price, pe_ratio, dividend_yield, free_float, volume_avg_30d,
-        change_1y_pct (~729 rows, one per PSX-listed symbol).
+        price, change_pct, change_1y_pct, pe_ratio, dividend_yield,
+        free_float, volume_avg_30d, traded_today, sector_code, sector_name
+        (~750 rows, one per symbol in PSX's screener).
         Empty DataFrame if PSX returns no data.
 
     Raises:

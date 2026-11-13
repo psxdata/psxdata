@@ -58,6 +58,22 @@ print(screen.head())
     and serves all subsequent `quote()` calls from that cache, so screening
     all 100 stocks costs one screener fetch (plus the trading-board check below).
 
+## Group by sector
+
+The screener includes each symbol's sector name, so you can aggregate without
+a separate lookup:
+
+```python
+import psxdata
+
+df = psxdata.screener()
+traded = df[df["traded_today"].fillna(False)]
+print(traded.groupby("sector_name")["change_pct"].mean().sort_values())
+```
+
+`sector_code` is PSX's 4-character code ("0809"); `sector` is the same code
+parsed as a number, kept for existing code.
+
 ## Rank today's movers
 
 PSX keeps some symbols in its screener after they stop trading, including

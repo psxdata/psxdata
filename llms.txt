@@ -28,7 +28,7 @@ Requires Python 3.11+
 - `psxdata.tickers()` — All 1000+ listed PSX tickers
 - `psxdata.symbols()` — Symbol/sector/name metadata, optionally filtered
 - `psxdata.quote(symbol)` — Live quote (price, volume, sector, market cap)
-- `psxdata.screener()` — Full, unfiltered PSX screener table (~750 symbols, all columns, plus `traded_today`: whether the symbol has traded in the session so far, <NA> if unknown; PSX keeps stale and delisted rows)
+- `psxdata.screener()` — Full, unfiltered PSX screener table (~750 symbols, all columns, plus `traded_today` (traded in the session so far, <NA> if unknown) and `sector_code`/`sector_name`; PSX keeps stale and delisted rows)
 - `psxdata.indices(name)` — Constituents of a named index (KSE100, KSE30, KMI30, and 15 others)
 - `psxdata.sectors()` — Sector aggregates for all 37 PSX sectors
 - `psxdata.fundamentals(symbol)` — Financial reports (P/E, EPS, book value)
