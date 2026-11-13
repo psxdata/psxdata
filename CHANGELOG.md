@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.5.0] - 2026-11-13
+
 ### Added
 
 - `badge` and `ex_flag` on `screener()`/`quote()`, `indices()` and the trading boards (pandas `string` dtype, `<NA>` when empty). PSX shows a badge next to some tickers. `badge` is its text (`XD`, `XB`, `XR`, and others such as `NC` or `WU`; several are joined with `+`). `ex_flag` keeps only the corporate-action ones: XD ex-dividend, XB ex-bonus, XR ex-rights, plus any other `X` code, which is also logged. Since 1.2.1 the badge was dropped to keep tickers clean; now it's kept beside them, which lets you attribute a price drop to a stock going ex (on 2026-11-13, 19 KSE-100 constituents were XD). Cached screener and index data from older versions is refetched.
