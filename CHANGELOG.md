@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `screener()` and `quote()` now include `sector_code` and `sector_name`. PSX's screener gives only a sector code, which the scraper parses as a number (`sector` = 809.0). `sector_code` is the code as PSX writes it (`"0809"`) and `sector_name` its name from `sectors()` (`"FERTILIZER"`). Both are `<NA>` when PSX gives no sector; `sector_name` is `<NA>` if the sector list can't be read; that never fails `screener()`. A snapshot cached by 1.3.0, which lacks these columns, is refetched. `sector` is unchanged. A screener fetch now also reads the sector list (cached the same way as `sectors()`).
 
+### Changed
+
+- `screener()` and `quote()` return `pe_ratio` as NaN where PSX shows 0.00. PSX uses 0.00 when there is no meaningful P/E (e.g. loss-making companies; 393 of 755 symbols on 2026-11-13, never negative), and a 0 sorted those as the cheapest stocks. If you relied on `pe_ratio == 0`, use `pe_ratio.isna()`. `dividend_yield` 0 is unchanged; it means no dividend.
+
 ---
 
 ## [1.3.0] - 2026-11-13

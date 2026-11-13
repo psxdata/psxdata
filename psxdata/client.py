@@ -220,8 +220,8 @@ class PSXClient:
             ``sector_code`` is the same code as PSX writes it ("0809") and
             ``sector_name`` its name from ``sectors()`` ("FERTILIZER"); both
             are ``<NA>`` when PSX gives no sector, and ``sector_name`` is
-            ``<NA>`` if the sector list can't be read. ``pe_ratio`` is 0 when
-            PSX shows no meaningful P/E (e.g. loss-making companies).
+            ``<NA>`` if the sector list can't be read. ``pe_ratio`` is NaN when
+            PSX shows no meaningful P/E (0.00, e.g. loss-making companies).
 
             ``traded_today`` (nullable boolean) is ``True`` when the symbol
             has volume on PSX's regular-market main or GEM trading board in

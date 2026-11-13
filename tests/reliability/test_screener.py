@@ -68,3 +68,28 @@ class TestScreenerScraper:
             df = scraper.fetch()
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
+
+
+class TestScreenerPeRatio:
+    def _fetch(self, rows):
+        scraper = ScreenerScraper()
+        with (
+            patch.object(scraper._session, "request", return_value=_mock_response("<html></html>")),
+            patch("psxdata.scrapers.screener.parse_html_table", return_value=rows),
+        ):
+            return scraper.fetch().set_index("symbol")
+
+    def test_zero_pe_becomes_nan(self):
+        """PSX shows 0.00 when there is no meaningful P/E (e.g. losses); 0 would
+        rank as the cheapest stock, so it's returned as NaN."""
+        df = self._fetch([
+            {"symbol": "LOSS", "pe_ratio": "0.00", "dividend_yield": "0.00", "price": "10"},
+            {"symbol": "PROF", "pe_ratio": "8.50", "dividend_yield": "0.00", "price": "20"},
+        ])
+        assert pd.isna(df.loc["LOSS", "pe_ratio"])
+        assert df.loc["PROF", "pe_ratio"] == 8.5
+
+    def test_zero_dividend_yield_is_kept(self):
+        """A 0 dividend yield is real (no dividend), unlike a 0 P/E."""
+        df = self._fetch([{"symbol": "LOSS", "pe_ratio": "0.00", "dividend_yield": "0.00", "price": "10"}])
+        assert df.loc["LOSS", "dividend_yield"] == 0.0
