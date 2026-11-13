@@ -32,6 +32,7 @@ class ScreenerScraper(BaseScraper):
             market_cap, price, pe_ratio, dividend_yield, free_float,
             volume_avg_30d, change_1y_pct.
             sector column contains raw numeric codes — not enriched.
+            pe_ratio is NaN where PSX shows 0.00 (no meaningful P/E).
             Empty DataFrame if PSX returns no table data.
 
         Raises:
@@ -54,5 +55,11 @@ class ScreenerScraper(BaseScraper):
         for col in numeric_cols:
             if col in df.columns:
                 df[col] = df[col].apply(coerce_numeric)
+
+        # PSX shows P/E 0.00 when there is no meaningful P/E (e.g. losses).
+        # A 0 would sort as the cheapest stock, so return it as missing.
+        # (A 0 dividend yield is real: the company pays none.)
+        if "pe_ratio" in df.columns:
+            df["pe_ratio"] = df["pe_ratio"].mask(df["pe_ratio"] == 0)
 
         return df

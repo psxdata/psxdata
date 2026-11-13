@@ -36,6 +36,7 @@ def client(tmp_path):
     c._symbols = MagicMock()
     c._indices = MagicMock()
     c._sectors = MagicMock()
+    c._sectors.fetch.return_value = pd.DataFrame()
     c._fundamentals = MagicMock()
     c._debt_market = MagicMock()
     c._eligible_scrips = MagicMock()
@@ -452,6 +453,111 @@ class TestScreener:
         client._screener.fetch.return_value = pd.DataFrame()
         assert client.screener(cache=False).empty
         client._realtime.fetch.assert_not_called()
+
+
+_SECTORS = pd.DataFrame({
+    "sector_code": ["0809", "0813", "0823"],
+    "sector_name": ["FERTILIZER", "INV. BANKS / INV. COS. / SECURITIES COS.", "OIL & GAS EXPLORATION COMPANIES"],
+})
+
+
+class TestScreenerSectors:
+    def _screener(self, client, sectors):
+        client._screener.fetch.return_value = pd.DataFrame({
+            "symbol": ["FFC", "ENGROH", "OGDC", "PIAA", "NEWCO"],
+            # PSX sends "0809"; the scraper coerces it to a number.
+            "sector": [809.0, 813.0, 823.0, float("nan"), 899.0],
+        })
+        client._realtime.fetch.side_effect = _boards(_main(["FFC"]))
+        client._sectors.fetch.return_value = sectors
+        return client.screener(cache=False).set_index("symbol")
+
+    def test_adds_zero_padded_code_and_name(self, client):
+        df = self._screener(client, _SECTORS)
+        assert df.loc["FFC", "sector_code"] == "0809"
+        assert df.loc["FFC", "sector_name"] == "FERTILIZER"
+        assert df.loc["OGDC", "sector_name"] == "OIL & GAS EXPLORATION COMPANIES"
+        # The numeric column is unchanged for existing callers.
+        assert df.loc["FFC", "sector"] == 809.0
+
+    def test_missing_or_unknown_sector_is_na(self, client):
+        df = self._screener(client, _SECTORS)
+        assert pd.isna(df.loc["PIAA", "sector_code"]) and pd.isna(df.loc["PIAA", "sector_name"])
+        assert df.loc["NEWCO", "sector_code"] == "0899"
+        assert pd.isna(df.loc["NEWCO", "sector_name"])
+
+    @pytest.mark.parametrize("failure", ["empty", "raises"])
+    def test_sector_lookup_failure_keeps_codes(self, client, failure, caplog):
+        if failure == "raises":
+            client._sectors.fetch.side_effect = RuntimeError("sectors down")
+            sectors = None
+        else:
+            sectors = pd.DataFrame()
+        with caplog.at_level("WARNING"):
+            df = self._screener(client, sectors)
+        assert len(df) == 5
+        assert df.loc["FFC", "sector_code"] == "0809"
+        assert df["sector_name"].isna().all()
+        assert "sector names" in caplog.text
+
+    def test_unknown_names_are_still_cached(self, client):
+        """A sector-list outage must not make every quote() refetch the screener."""
+        client._screener.fetch.return_value = pd.DataFrame({"symbol": ["FFC"], "sector": [809.0]})
+        client._realtime.fetch.side_effect = _boards(_main(["FFC"]))
+        client.quote("FFC", cache=True)  # sectors empty -> names unknown
+        df = client.quote("FFC", cache=True)
+        client._screener.fetch.assert_called_once()
+        assert pd.isna(df.loc[0, "sector_name"])
+
+    def test_cached_snapshot_round_trip(self, client):
+        client._screener.fetch.return_value = pd.DataFrame({"symbol": ["FFC"], "sector": [809.0]})
+        client._realtime.fetch.side_effect = _boards(_main(["FFC"]))
+        client._sectors.fetch.return_value = _SECTORS
+        client.screener(cache=True)
+        df = client.screener(cache=True)
+        client._screener.fetch.assert_called_once()
+        client._sectors.fetch.assert_called_once()
+        assert df.loc[0, "sector_code"] == "0809" and df.loc[0, "sector_name"] == "FERTILIZER"
+        assert str(df["sector_code"].dtype) == "string"
+
+    def test_snapshot_from_older_version_is_refetched(self, client):
+        """psxdata 1.3.0 cached the snapshot without the sector columns."""
+        old = pd.DataFrame({"symbol": ["FFC"], "sector": [809.0], "traded_today": [True]})
+        client._cache.set("screener_snapshot", old, ttl=900)
+        client._screener.fetch.return_value = old[["symbol", "sector"]]
+        client._realtime.fetch.side_effect = _boards(_main(["FFC"]))
+        client._sectors.fetch.return_value = _SECTORS
+        df = client.screener(cache=True)
+        client._screener.fetch.assert_called_once()
+        assert df.loc[0, "sector_name"] == "FERTILIZER"
+
+    def test_quote_includes_sector_columns(self, client):
+        client._screener.fetch.return_value = pd.DataFrame({"symbol": ["FFC"], "sector": [809.0]})
+        client._realtime.fetch.side_effect = _boards(_main(["FFC"]))
+        client._sectors.fetch.return_value = _SECTORS
+        row = client.quote("FFC", cache=False).iloc[0]
+        assert (row["sector_code"], row["sector_name"]) == ("0809", "FERTILIZER")
+
+    def test_screener_without_sector_column(self, client):
+        client._screener.fetch.return_value = pd.DataFrame({"symbol": ["FFC"], "price": [1.0]})
+        client._realtime.fetch.side_effect = _boards(_main(["FFC"]))
+        df = client.screener(cache=False)
+        assert "sector_code" not in df.columns
+        client._sectors.fetch.assert_not_called()
+
+    def test_odd_codes_become_na_and_sector_list_codes_are_normalised(self, client):
+        client._screener.fetch.return_value = pd.DataFrame({
+            "symbol": ["A", "B", "C", "D"],
+            "sector": [float("inf"), 809.5, -1.0, 809.0],
+        })
+        client._realtime.fetch.side_effect = _boards(_main(["A"]))
+        # Sector list with an integer code and stray whitespace.
+        client._sectors.fetch.return_value = pd.DataFrame(
+            {"sector_code": [809], "sector_name": ["FERTILIZER"]}
+        )
+        df = client.screener(cache=False).set_index("symbol")
+        assert df.loc[["A", "B", "C"], "sector_code"].isna().all()
+        assert df.loc["D", "sector_name"] == "FERTILIZER"
 
 
 class TestFundamentals:
