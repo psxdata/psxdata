@@ -188,3 +188,63 @@ class TestDataOrderCells:
             '<tbody><tr><td>A</td><td data-order="0.4">0.40%</td></tr></tbody></table>'
         )
         assert parse_html_table(html)[0]["change_pct"] == "0.40%"
+
+
+class TestSymbolBadges:
+    """PSX marks some symbols with a badge next to the ticker: corporate actions
+    (XD ex-dividend, XB ex-bonus, XR ex-rights) and others such as NC."""
+
+    @staticmethod
+    def _html(*rows: str) -> str:
+        return (
+            "<table><thead><tr><th>SYMBOL</th><th>PRICE</th></tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+
+    @staticmethod
+    def _row(symbol: str, badge: str | None = None, cls: str = "tag tag--skim tag--xd") -> str:
+        tag = f'<div class="{cls}">{badge}</div>' if badge else ""
+        return (
+            f'<tr><td data-order="{symbol}"><a class="tbl__symbol"><strong>{symbol}</strong></a>'
+            f"{tag}</td><td>1.00</td></tr>"
+        )
+
+    def test_corporate_action_badge_sets_badge_and_ex_flag(self):
+        rows = parse_html_table(
+            self._html(self._row("ABL", "XD"), self._row("LUCK", "XB"), self._row("PPL", "XR")),
+            badges=True,
+        )
+        assert [(r["symbol"], r["badge"], r["ex_flag"]) for r in rows] == [
+            ("ABL", "XD", "XD"), ("LUCK", "XB", "XB"), ("PPL", "XR", "XR"),
+        ]
+
+    def test_other_badge_is_not_an_ex_flag(self):
+        row = parse_html_table(self._html(self._row("AAL", "NC", "tag tag--skim tag--def")), badges=True)[0]
+        assert (row["symbol"], row["badge"], row["ex_flag"]) == ("AAL", "NC", None)
+
+    def test_no_badge_gives_none(self):
+        row = parse_html_table(self._html(self._row("HBL")), badges=True)[0]
+        assert (row["badge"], row["ex_flag"]) == (None, None)
+
+    def test_tables_without_symbol_column_get_no_badge_keys(self):
+        html = "<table><thead><tr><th>DATE</th><th>CLOSE</th></tr></thead><tbody><tr><td>Jan 1, 2026</td><td>1</td></tr></tbody></table>"
+        assert "badge" not in parse_html_table(html, badges=True)[0]
+
+    def test_badges_are_opt_in(self):
+        row = parse_html_table(self._html(self._row("ABL", "XD")))[0]
+        assert "badge" not in row and "ex_flag" not in row
+
+    def test_two_badges_are_joined(self):
+        cell = (
+            '<tr><td data-order="ABL"><a><strong>ABL</strong></a>'
+            '<div class="tag tag--xd">XD</div><div class="tag tag--def">NC</div></td><td>1</td></tr>'
+        )
+        row = parse_html_table(self._html(cell), badges=True)[0]
+        assert (row["badge"], row["ex_flag"]) == ("XD+NC", "XD")
+
+    def test_unknown_x_badge_is_kept_and_logged(self, caplog):
+        with caplog.at_level("WARNING"):
+            row = parse_html_table(self._html(self._row("ABL", "XDXB")), badges=True)[0]
+        assert row["ex_flag"] == "XDXB"
+        assert "Unrecognised PSX corporate-action badge" in caplog.text

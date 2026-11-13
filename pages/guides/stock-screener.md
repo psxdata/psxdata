@@ -74,6 +74,21 @@ print(traded.groupby("sector_name")["change_pct"].mean().sort_values())
 `sector_code` is PSX's 4-character code ("0809"); `sector` is the same code
 parsed as a number, kept for existing code.
 
+## Spot ex-dividend, ex-bonus and ex-rights stocks
+
+A stock that goes ex drops by roughly the dividend or entitlement without any real loss. PSX marks these with a badge
+next to the ticker, which psxdata returns as `ex_flag` (`XD`, `XB` or `XR`; `<NA>` otherwise) on the screener,
+quotes, index constituents and trading boards:
+
+```python
+import psxdata
+
+kse = psxdata.indices("KSE100")
+print(kse[kse["ex_flag"].notna()][["symbol", "ex_flag"]])
+```
+
+`badge` holds any badge PSX shows, including ones that aren't corporate actions (e.g. `NC`, `WU`).
+
 ## Rank today's movers
 
 PSX keeps some symbols in its screener after they stop trading, including

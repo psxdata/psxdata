@@ -283,7 +283,7 @@ class TestIndices:
         client._indices.fetch.return_value = indices_df
         result = client.indices("KSE100", cache=False)
         client._indices.fetch.assert_called_once_with("KSE100")
-        pd.testing.assert_frame_equal(result, indices_df)
+        pd.testing.assert_frame_equal(result.drop(columns=["badge", "ex_flag"]), indices_df)
 
 
 # ---------------------------------------------------------------------------
@@ -345,7 +345,7 @@ class TestScreener:
         client._realtime.fetch.side_effect = _boards(_main(["ENGRO", "LUCK", "HBL"]))
         result = client.screener(cache=False)
         client._screener.fetch.assert_called_once()
-        pd.testing.assert_frame_equal(result.drop(columns="traded_today"), screener_df)
+        pd.testing.assert_frame_equal(result.drop(columns=["traded_today", "badge", "ex_flag"]), screener_df)
 
     def test_screener_shares_cache_with_quote(self, client, screener_df):
         """screener() and quote() share one cached snapshot."""
@@ -690,3 +690,30 @@ class TestEligibleScrips:
         client.eligible_scrips(cache=True)
         client.eligible_scrips(cache=False)
         assert client._eligible_scrips.fetch.call_count == 2
+
+
+class TestBadgeCacheUpgrade:
+    def test_index_cached_before_badges_is_refetched(self, client):
+        old = pd.DataFrame({"symbol": ["ABL"], "current_index": [1.0]})
+        client._cache.set("indices_KSE100", old, ttl=900)
+        client._indices.fetch.return_value = old.assign(
+            badge=pd.array(["XD"], dtype="string"), ex_flag=pd.array(["XD"], dtype="string")
+        )
+        df = client.indices("KSE100")
+        client._indices.fetch.assert_called_once()
+        assert df.loc[0, "ex_flag"] == "XD"
+
+    def test_screener_snapshot_cached_before_badges_is_refetched(self, client):
+        old = pd.DataFrame({
+            "symbol": ["ABL"], "sector": [807.0], "traded_today": [True],
+            "sector_code": ["0807"], "sector_name": ["COMMERCIAL BANKS"],
+        })
+        client._cache.set("screener_snapshot", old, ttl=900)
+        client._screener.fetch.return_value = pd.DataFrame({
+            "symbol": ["ABL"], "sector": [807.0],
+            "badge": pd.array(["XD"], dtype="string"), "ex_flag": pd.array(["XD"], dtype="string"),
+        })
+        client._realtime.fetch.side_effect = _boards(_main(["ABL"]))
+        df = client.screener(cache=True)
+        client._screener.fetch.assert_called_once()
+        assert df.loc[0, "ex_flag"] == "XD"
