@@ -34,4 +34,4 @@ print("\n5. KSE-100 top 5 by index weight")
 idx = psxdata.indices("KSE100")
 print(idx.nlargest(5, "idx_weight")[["symbol", "idx_weight"]])
 
-print("\nDone. See https://psxdata.mintlify.app for full documentation.")
+print("\nDone. See https://docs.psxdata.org for full documentation.")

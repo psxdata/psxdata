@@ -3,11 +3,11 @@
 [![CI](https://github.com/psxdata/psxdata/actions/workflows/ci.yml/badge.svg)](https://github.com/psxdata/psxdata/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/psxdata)](https://pypi.org/project/psxdata/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/psxdata?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/psxdata)
-[![Documentation](https://img.shields.io/badge/docs-mintlify-blue)](https://psxdata.mintlify.app)
+[![Documentation](https://img.shields.io/badge/docs-mintlify-blue)](https://docs.psxdata.org)
 [![Python](https://img.shields.io/pypi/pyversions/psxdata)](https://pypi.org/project/psxdata/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**[Full documentation at psxdata.mintlify.app](https://psxdata.mintlify.app)**
+**[Full documentation at docs.psxdata.org](https://docs.psxdata.org)**
 
 > **Deprecated:** ReadTheDocs hosting at [psxdata.readthedocs.io](https://psxdata.readthedocs.io) is no longer the primary documentation source and may be removed in a future release.
 

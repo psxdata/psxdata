@@ -61,7 +61,7 @@ Homepage = "https://github.com/psxdata/psxdata"
 Source = "https://github.com/psxdata/psxdata"
 "Bug Tracker" = "https://github.com/psxdata/psxdata/issues"
 Changelog = "https://github.com/psxdata/psxdata/blob/main/CHANGELOG.md"
-Documentation = "https://psxdata.mintlify.app"
+Documentation = "https://docs.psxdata.org"
 
 [tool.setuptools.packages.find]
 where = ["."]
