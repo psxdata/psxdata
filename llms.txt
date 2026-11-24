@@ -61,6 +61,6 @@ Requires Python 3.11+
 
 ## REST API
 
-A FastAPI REST layer is live at [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api) (v0.1.2), deployed at https://psxdata-api.fastapicloud.dev. It wraps this library over HTTP with endpoints for stocks, quotes, indices, sectors, debt market, and eligible scrips. Docs: https://psxdata.mintlify.app/rest-api/introduction.
+A FastAPI REST layer is live at [psxdata/psxdata-api](https://github.com/psxdata/psxdata-api) (v0.1.2), deployed at https://psxdata-api.fastapicloud.dev. It wraps this library over HTTP with endpoints for stocks, quotes, indices, sectors, debt market, and eligible scrips. Docs: https://docs.psxdata.org/rest-api/introduction.
 
 All responses: `{"data": ..., "meta": {"timestamp": "...", "cached": bool}}`
