@@ -57,7 +57,7 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/psxdata/psxdata"
+Homepage = "https://psxdata.org"
 Source = "https://github.com/psxdata/psxdata"
 "Bug Tracker" = "https://github.com/psxdata/psxdata/issues"
 Changelog = "https://github.com/psxdata/psxdata/blob/main/CHANGELOG.md"
