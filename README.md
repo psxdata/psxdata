@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/psxdata)](https://pypi.org/project/psxdata/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**[Full documentation at docs.psxdata.org](https://docs.psxdata.org)**
+**[Full documentation at docs.psxdata.org](https://docs.psxdata.org)** · [psxdata.org](https://psxdata.org)
 
 > **Deprecated:** ReadTheDocs hosting at [psxdata.readthedocs.io](https://psxdata.readthedocs.io) is no longer the primary documentation source and may be removed in a future release.
 
